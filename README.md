@@ -14,6 +14,22 @@ Features include:
 
 ---
 
+## 📁 Project Structure
+
+```
+NPACN-Project/
+├── backend/          # Node.js WebSocket backend
+│   ├── server.js     # Main WebSocket and Express server
+│   └── package.json  # Backend dependencies
+├── frontend/         # React + Vite frontend
+│   ├── src/          # Source files (components, styles)
+│   ├── index.html    # Entry HTML
+│   └── package.json  # Frontend dependencies
+└── render.yaml       # Blueprint for simple backend deployment on Render
+```
+
+---
+
 ## 🚀 Getting Started Locally
 
 To run this application on your local machine, you'll need two separate terminal windows—one for the backend and one for the frontend.
@@ -49,6 +65,11 @@ npm run dev
 
 Due to the persistent WebSockets architectural requirement, standard serverless platforms (like Vercel functions) won't suffice for the backend. We recommend a *decoupled architecture*:
 
-1. **Deploy Backend:** Host your `backend` directory persistently holding execution state on services like **Render**, **Railway**, or **Fly.io**. 
-2. **Deploy Frontend:** Host your `frontend` directory natively on **Vercel** or **Netlify**. 
-   - Before deploying the frontend, verify you configure the `VITE_WS_URL` environment variable within your host's dashboard securely pointing to your live backend endpoint (e.g., `wss://your-render-app.onrender.com`).
+### 1. Deploy Backend (Render)
+Host your `backend` directory persistently holding execution state on services like **Render**. 
+- **Render Blueprint:** A `render.yaml` file is included in the root directory. You can easily deploy the backend by connecting this repository to Render using their "Blueprint" feature. It automatically provisions a web service for the `backend/` folder.
+
+### 2. Deploy Frontend (Vercel, Netlify)
+Host your `frontend` directory natively on **Vercel** or **Netlify**. 
+- **Environment Variable:** Before deploying the frontend, ensure you configure the `VITE_WS_URL` environment variable within your host's dashboard to securely point to your live backend endpoint.
+  - *Example:* `VITE_WS_URL=wss://your-render-app.onrender.com`
