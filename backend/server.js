@@ -16,7 +16,7 @@ const rooms = new Map();
 // In-memory user store (Replaced JWT/DB as requested)
 const users = [];
 
-// Auth Endpoints
+// Auth Endpoints for login
 app.post('/api/auth/register', (req, res) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required' });
