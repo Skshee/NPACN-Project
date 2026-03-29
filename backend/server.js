@@ -7,48 +7,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- Simple In-Memory Authentication Store ---
-// NOTE: These values will be reset if you restart the server!
-const users = [];
-
-app.post('/api/auth/register', (req, res) => {
-  const { username, email, password } = req.body;
-  if (users.find(u => u.email === email || u.username === username)) {
-    return res.status(400).json({ message: 'User already exists' });
-  }
-  const newUser = { username, email, password };
-  users.push(newUser);
-  console.log(`New user registered: ${username}`);
-  res.status(201).json({ username: newUser.username });
-});
-
-app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  const user = users.find(u => u.email === email && u.password === password);
-  if (!user) {
-    return res.status(401).json({ message: 'Invalid credentials' });
-  }
-  res.json({ username: user.username });
-});
-
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Map to store roomId -> { clients: Map<WebSocket, UserInfo>, history: Array }
+// Map to store roomId -> { clients: Set<WebSocket>, history: Array }
 const rooms = new Map();
 
-wss.on('connection', (ws, req) => {
-  // Simple Authentication via query parameter
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const username = url.searchParams.get('username');
-  
-  if (!username) {
-    console.log('Unidentified connection attempt, closing...');
-    ws.close(4001, 'Username required');
-    return;
-  }
-
-  const user = { username };
+wss.on('connection', (ws) => {
   let currentRoom = null;
 
   ws.on('message', (data) => {
@@ -70,12 +35,12 @@ wss.on('connection', (ws, req) => {
         
         // Initialize room if it doesn't exist
         if (!rooms.has(roomId)) {
-          rooms.set(roomId, { clients: new Map(), history: [] });
+          rooms.set(roomId, { clients: new Set(), history: [] });
         }
         const roomData = rooms.get(roomId);
-        roomData.clients.set(ws, user);
+        roomData.clients.add(ws);
         
-        console.log(`User ${user.username} joined room: ${roomId}`);
+        console.log(`Socket joined room: ${roomId}`);
 
         // Send existing history to the newly joined client
         if (roomData.history.length > 0) {
@@ -90,9 +55,6 @@ wss.on('connection', (ws, req) => {
         
         const roomData = rooms.get(currentRoom);
 
-        // Security check: Only clients in the room map can broadcast
-        if (!roomData.clients.has(ws)) return;
-
         // Update room history
         if (message.type === 'clear') {
           roomData.history = [];
@@ -100,7 +62,7 @@ wss.on('connection', (ws, req) => {
           roomData.history.push(message);
         }
 
-        for (const [client] of roomData.clients) {
+        for (const client of roomData.clients) {
           // Send to everyone EXCEPT the sender
           if (client !== ws && client.readyState === 1 /* WebSocket.OPEN */) {
             client.send(messageAsString); // Send the raw string directly
@@ -127,9 +89,7 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`Simple SyncBoard server running on port ${PORT}`);
+const PORT = 3001;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`SyncBoard Basic Server running on port ${PORT}`);
 });
-
-
