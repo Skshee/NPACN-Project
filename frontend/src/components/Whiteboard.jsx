@@ -36,12 +36,26 @@ const Whiteboard = ({ roomId, onLeave }) => {
     window.addEventListener('resize', fitCanvas);
 
     // 2. Setup WebSocket (Use env variable for production, default to localhost for dev)
-    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
+    const token = localStorage.getItem('token');
+    const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3001'}?token=${token}`;
     const ws = new WebSocket(wsUrl);
+    
     ws.onopen = () => {
       console.log('Connected to WebSocket server');
       // Join Room
       ws.send(JSON.stringify({ type: 'join', roomId }));
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket connection error:', err);
+    };
+
+    ws.onclose = (event) => {
+      if (event.code === 4001) {
+        console.error('Authentication failed: ', event.reason);
+        alert('Your session has expired or is invalid. Please log in again.');
+        // Potentially trigger a logout here if we had access to the context inside useEffect
+      }
     };
 
     ws.onmessage = (event) => {

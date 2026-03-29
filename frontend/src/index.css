@@ -137,6 +137,24 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.input-with-icon .glass-input {
+  padding-left: 40px;
 }
 
 /* Whiteboard Area */
