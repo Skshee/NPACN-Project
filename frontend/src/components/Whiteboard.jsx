@@ -36,8 +36,8 @@ const Whiteboard = ({ roomId, onLeave }) => {
     window.addEventListener('resize', fitCanvas);
 
     // 2. Setup WebSocket (Use env variable for production, default to localhost for dev)
-    const token = localStorage.getItem('token');
-    const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3001'}?token=${token}`;
+    const username = localStorage.getItem('username');
+    const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3001'}?username=${username}`;
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {

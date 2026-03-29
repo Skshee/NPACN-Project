@@ -1,52 +1,34 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { WebSocketServer } = require('ws');
 const http = require('http');
-const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
-const User = require('./models/User');
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/syncboard')
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- Authentication Routes ---
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { username, email, password } = req.body;
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-    const user = new User({ username, email, password });
-    await user.save();
-    
-    const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, username: user.username });
-  } catch (err) {
-    res.status(500).json({ message: 'Registration failed', error: err.message });
+// --- Simple In-Memory Authentication Store ---
+// NOTE: These values will be reset if you restart the server!
+const users = [];
+
+app.post('/api/auth/register', (req, res) => {
+  const { username, email, password } = req.body;
+  if (users.find(u => u.email === email || u.username === username)) {
+    return res.status(400).json({ message: 'User already exists' });
   }
+  const newUser = { username, email, password };
+  users.push(newUser);
+  console.log(`New user registered: ${username}`);
+  res.status(201).json({ username: newUser.username });
 });
 
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    
-    const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, username: user.username });
-  } catch (err) {
-    res.status(500).json({ message: 'Login failed', error: err.message });
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  const user = users.find(u => u.email === email && u.password === password);
+  if (!user) {
+    return res.status(401).json({ message: 'Invalid credentials' });
   }
+  res.json({ username: user.username });
 });
 
 const server = http.createServer(app);
@@ -56,25 +38,17 @@ const wss = new WebSocketServer({ server });
 const rooms = new Map();
 
 wss.on('connection', (ws, req) => {
-  // Authentication check
+  // Simple Authentication via query parameter
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const token = url.searchParams.get('token');
+  const username = url.searchParams.get('username');
   
-  if (!token) {
-    console.log('Unauthenticated connection attempt, closing...');
-    ws.close(4001, 'Unauthorized: Token required');
+  if (!username) {
+    console.log('Unidentified connection attempt, closing...');
+    ws.close(4001, 'Username required');
     return;
   }
 
-  let user = null;
-  try {
-    user = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (err) {
-    console.log('Invalid token, closing...');
-    ws.close(4001, 'Unauthorized: Invalid token');
-    return;
-  }
-
+  const user = { username };
   let currentRoom = null;
 
   ws.on('message', (data) => {
@@ -116,7 +90,7 @@ wss.on('connection', (ws, req) => {
         
         const roomData = rooms.get(currentRoom);
 
-        // Security check: Only broadcasters from the room map can draw
+        // Security check: Only clients in the room map can broadcast
         if (!roomData.clients.has(ws)) return;
 
         // Update room history
@@ -155,6 +129,7 @@ wss.on('connection', (ws, req) => {
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`Secure SyncBoard server running on port ${PORT}`);
+  console.log(`Simple SyncBoard server running on port ${PORT}`);
 });
+
 
