@@ -13,10 +13,10 @@ const wss = new WebSocketServer({ server });
 // Map to store roomId -> { clients: Set<WebSocket>, history: Array }
 const rooms = new Map();
 
-// In-memory user store (Replaced JWT/DB as requested)
+// In-memory user store (Basic Auth without DB/JWT)
 const users = [];
 
-// Auth Endpoints for login
+// Basic Email/Password Endpoints
 app.post('/api/auth/register', (req, res) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required' });
@@ -30,11 +30,55 @@ app.post('/api/auth/register', (req, res) => {
 });
 
 app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return res.status(401).json({ message: 'Missing or Invalid Authorization Header' });
+  }
+
+  // Decode base64 credentials
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+  const [email, password] = credentials.split(':');
+
   const user = users.find(u => u.email === email && u.password === password);
   if (!user) return res.status(401).json({ message: 'Invalid credentials' });
 
   res.json({ username: user.username, message: 'Login successful' });
+});
+
+// OAuth2 Setup (Google Example)
+// Note: You will need to get a GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET from the Google Developer Console
+app.get('/api/auth/google/login', (req, res) => {
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
+  const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/auth/google/callback';
+  
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=profile email`;
+  
+  // Redirect user to Google's consent screen
+  res.redirect(googleAuthUrl);
+});
+
+app.get('/api/auth/google/callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.status(400).send('Authorization code not provided');
+
+  try {
+    // In a real application, you would:
+    // 1. Exchange 'code' for an access token via POST to https://oauth2.googleapis.com/token
+    // 2. Fetch user profile using the access token from https://www.googleapis.com/oauth2/v2/userinfo
+    // 3. Find or create the user in your 'users' array
+    // 4. Redirect to frontend with successful login state (e.g. setting a cookie or passing a simple token)
+
+    console.log("OAuth2 Code received:", code);
+    
+    // Simulating successful OAuth login for demonstration
+    const mockOAuthUser = { username: "GoogleUser" };
+    
+    // Redirect back to frontend
+    res.redirect(`http://localhost:5173?oauth_username=${mockOAuthUser.username}`);
+  } catch (error) {
+    res.status(500).send('OAuth2 authentication failed');
+  }
 });
 
 wss.on('connection', (ws) => {
