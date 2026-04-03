@@ -7,9 +7,20 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUsername = localStorage.getItem('username');
-    if (savedUsername) {
-      setUser({ username: savedUsername });
+    // Check URL parameters for OAuth2 login redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthUsername = urlParams.get('oauth_username');
+    
+    if (oauthUsername) {
+      setUser({ username: oauthUsername });
+      localStorage.setItem('username', oauthUsername);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      const savedUsername = localStorage.getItem('username');
+      if (savedUsername) {
+        setUser({ username: savedUsername });
+      }
     }
     setLoading(false);
   }, []);

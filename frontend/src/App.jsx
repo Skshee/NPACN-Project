@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import Whiteboard from './components/Whiteboard';
+import Login from './components/Login';
+import Signup from './components/Signup';
+import { useAuth } from './context/AuthContext';
 
 function App() {
   const [roomId, setRoomId] = useState('');
   const [joined, setJoined] = useState(false);
   const [inputRoom, setInputRoom] = useState('');
+  const [showSignup, setShowSignup] = useState(false);
+
+  const { isAuthenticated, loading, logout, user } = useAuth();
 
   const handleJoin = (e) => {
     e.preventDefault();
@@ -20,6 +26,28 @@ function App() {
     setJoined(true);
   };
 
+  if (loading) {
+    return (
+      <div className="app-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="app-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div className="bg-shape shape-1"></div>
+        <div className="bg-shape shape-2"></div>
+        {showSignup ? (
+          <Signup onToggle={() => setShowSignup(false)} />
+        ) : (
+          <Login onToggle={() => setShowSignup(true)} />
+        )}
+      </div>
+    );
+  }
+
   if (!joined) {
     return (
       <div className="app-container">
@@ -28,6 +56,11 @@ function App() {
 
         <div className="landing-container">
           <div className="glass-panel landing-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>Welcome, {user?.username}!</h2>
+              <button className="glass-button" onClick={logout} style={{ padding: '4px 12px', fontSize: '0.8rem' }}>Logout</button>
+            </div>
+            
             <h1>SyncBoard</h1>
             <p>Real-time collaborative drawing.<br/>Create or join a session instantly.</p>
             
@@ -64,9 +97,12 @@ function App() {
       <div className="bg-shape shape-1" style={{ width: '500px', height: '500px', opacity: 0.3, left: '-200px' }}></div>
       <div className="bg-shape shape-2" style={{ width: '400px', height: '400px', opacity: 0.2, right: '-100px' }}></div>
 
-      <div className="topbar glass-panel" style={{ borderRadius: '100px', padding: '8px 24px' }}>
-        <div className="status-dot"></div>
-        <span className="status-text">Connected to {roomId}</span>
+      <div className="topbar glass-panel" style={{ borderRadius: '100px', padding: '8px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div className="status-dot"></div>
+          <span className="status-text">Connected to {roomId}</span>
+        </div>
+        <button className="glass-button" onClick={() => setJoined(false)} style={{ padding: '4px 12px', fontSize: '0.8rem' }}>Leave Space</button>
       </div>
 
       <Whiteboard roomId={roomId} onLeave={() => setJoined(false)} />
